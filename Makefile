@@ -29,7 +29,7 @@ TEMP_DIR := _x.$(XSA)
 VPP := $(XILINX_VITIS)/bin/v++
 CLFLAGS += -t hw --platform $(DEVICE) --save-temps
 
-BUILD_DIR := ./$(DESIGN).intf$(INTERFACE).$(XSA)
+BUILD_DIR := ./$(DESIGN).intf$(INTERFACE).sketch$(SKETCH).$(XSA)
 BINARY_CONTAINERS = $(BUILD_DIR)/${XCLBIN_NAME}.xclbin
 
 NETLAYERDIR = NetLayers/
@@ -104,6 +104,7 @@ distclean: clean
 
 # Building kernel
 $(BUILD_DIR)/${XCLBIN_NAME}.xclbin:
+	echo "Building .xo files:$(LIST_XO)"
 	mkdir -p $(BUILD_DIR)
 	make -C $(CMACDIR) all DEVICE=$(DEVICE) INTERFACE=$(INTERFACE)
 	make -C $(NETLAYERDIR) all DEVICE=$(DEVICE)
@@ -153,11 +154,11 @@ check-interface:
 
 #Create configuration file for current design and settings
 create-conf-file:
-	@if [[ $(SKETCH) == 1 ]]; then\
-		cp config_files/connectivity_$(DESIGN)_if$(INTERFACE)_sketch.ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
-	else\
-		cp config_files/connectivity_$(DESIGN)_if$(INTERFACE).ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini\
-	fi
+ifeq ($(SKETCH), 1)
+	cp config_files/connectivity_$(DESIGN)_if$(INTERFACE)_sketch.ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
+else
+	cp config_files/connectivity_$(DESIGN)_if$(INTERFACE).ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
+endif
 	echo "" >> configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
 	echo "" >> configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
 	echo "[advanced]" >> configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
