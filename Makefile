@@ -1,3 +1,5 @@
+SHELL = /bin/bash
+
 .PHONY: help
 
 help:
@@ -19,6 +21,7 @@ DEVICE ?= xilinx_u280_xdma_201920_3
 INTERFACE ?= 0
 DESIGN ?= benchmark
 XCLBIN_NAME ?= vnx_$(DESIGN)_if$(INTERFACE)
+SKETCH ?= 0
 
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
@@ -33,6 +36,7 @@ NETLAYERDIR = NetLayers/
 CMACDIR     = Ethernet/
 BASICDIR    = Basic_kernels/
 BENCHMARDIR = Benchmark_kernel/
+SKETCHDIR   = Sketch/
 
 NETLAYERHLS = 100G-fpga-network-stack-core
 
@@ -61,6 +65,10 @@ ifeq (benchmark,$(DESIGN))
 else
 	LIST_XO += $(BASICDIR)$(TEMP_DIR)/krnl_mm2s.xo
 	LIST_XO += $(BASICDIR)$(TEMP_DIR)/krnl_s2mm.xo
+endif
+ifeq (1, $(SKETCH))
+	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/update_sketch.xo
+	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/read_sketch.xo
 endif
 
 # Linker params
@@ -101,6 +109,7 @@ $(BUILD_DIR)/${XCLBIN_NAME}.xclbin:
 	make -C $(NETLAYERDIR) all DEVICE=$(DEVICE)
 	make -C $(BASICDIR) all DEVICE=$(DEVICE)
 	make -C $(BENCHMARDIR) all DEVICE=$(DEVICE) -j2
+	make -C $(SKETCHDIR) all DEVICE=$(DEVICE)
 	$(VPP) $(CLFLAGS) $(CONFIGFLAGS) --temp_dir $(BUILD_DIR) -l -o'$@' $(LIST_XO) $(LIST_REPOS) -j 8 
 	#--dk chipscope:traffic_generator_$(INTERFACE):S_AXIS_n2k \
 	#--dk chipscope:traffic_generator_$(INTERFACE):M_AXIS_k2n \
@@ -144,7 +153,11 @@ check-interface:
 
 #Create configuration file for current design and settings
 create-conf-file:
-	cp config_files/connectivity_$(DESIGN)_if$(INTERFACE).ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
+	@if [[ $(SKETCH) == 1 ]]; then\
+		cp config_files/connectivity_$(DESIGN)_if$(INTERFACE)_sketch.ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
+	else\
+		cp config_files/connectivity_$(DESIGN)_if$(INTERFACE).ini configuration_$(DESIGN)_if$(INTERFACE).tmp.ini\
+	fi
 	echo "" >> configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
 	echo "" >> configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
 	echo "[advanced]" >> configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
