@@ -71,8 +71,8 @@ else
 	LIST_XO += $(BASICDIR)$(TEMP_DIR)/krnl_s2mm.xo
 endif
 ifeq (1, $(SKETCH))
-	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/update_sketch.xo
-	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/read_sketch.xo
+	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/update_sketch$(TAG).xo
+	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/read_sketch$(TAG).xo
 endif
 
 # Linker params
@@ -115,7 +115,9 @@ $(BUILD_DIR)/${XCLBIN_NAME}.xclbin:
 	make -C $(BASICDIR) all DEVICE=$(DEVICE)
 	make -C $(BENCHMARDIR) all DEVICE=$(DEVICE) -j2
 	make -C $(SKETCHDIR) all DEVICE=$(DEVICE) \
-		CM_ROWS=$(CM_ROWS) CM_COLS=$(CM_COLS) HASH_UNITS=$(HASH_UNITS)
+		CM_ROWS=$(CM_ROWS) CM_COLS=$(CM_COLS) \
+		HASH_UNITS=$(HASH_UNITS) \
+		TAG=$(TAG)
 
 	$(VPP) $(CLFLAGS) $(CONFIGFLAGS) --temp_dir $(BUILD_DIR) -l -o'$@' $(LIST_XO) $(LIST_REPOS) -j 8 
 	#--dk chipscope:traffic_generator_$(INTERFACE):S_AXIS_n2k \
