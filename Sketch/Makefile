@@ -20,7 +20,7 @@ kernel_list ?= update_sketch read_sketch
 CM_ROWS ?= 4
 CM_COLS ?= 12
 HASH_UNITS ?= CM_ROWS
-TAG ?= "_cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)"
+TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)

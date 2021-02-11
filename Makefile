@@ -26,7 +26,7 @@ SKETCH ?= 0
 CM_ROWS ?= 4
 CM_COLS ?= 12
 HASH_UNITS ?= 4
-TAG ?= "_cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)"
+TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)

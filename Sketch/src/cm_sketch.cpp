@@ -46,7 +46,6 @@ extern "C" {
 #pragma HLS INTERFACE axis port=dataIn
 #pragma HLS INTERFACE axis port=dataOut
 #pragma HLS INTERFACE ap_ctrl_none port=return
-DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
 #pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
 
     pkt curr;
@@ -54,6 +53,7 @@ DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
 
     // Only works with 64 B packets right now
     if(!dataIn.empty()){
+      DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
       dataIn.read(curr);
 
       // Short
