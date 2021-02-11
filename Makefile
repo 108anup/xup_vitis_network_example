@@ -23,13 +23,17 @@ DESIGN ?= benchmark
 XCLBIN_NAME ?= vnx_$(DESIGN)_if$(INTERFACE)
 SKETCH ?= 0
 
+CM_ROWS ?= 4
+CM_COLS ?= 12
+HASH_UNITS ?= 4
+TAG ?= "_cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)"
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)
 VPP := $(XILINX_VITIS)/bin/v++
 CLFLAGS += -t hw --platform $(DEVICE) --save-temps
 
-BUILD_DIR := ./$(DESIGN).intf$(INTERFACE).sketch$(SKETCH).$(XSA)
+BUILD_DIR := ./$(DESIGN).intf$(INTERFACE).sketch$(SKETCH)$(TAG).$(XSA)
 BINARY_CONTAINERS = $(BUILD_DIR)/${XCLBIN_NAME}.xclbin
 
 NETLAYERDIR = NetLayers/
@@ -110,7 +114,9 @@ $(BUILD_DIR)/${XCLBIN_NAME}.xclbin:
 	make -C $(NETLAYERDIR) all DEVICE=$(DEVICE)
 	make -C $(BASICDIR) all DEVICE=$(DEVICE)
 	make -C $(BENCHMARDIR) all DEVICE=$(DEVICE) -j2
-	make -C $(SKETCHDIR) all DEVICE=$(DEVICE)
+	make -C $(SKETCHDIR) all DEVICE=$(DEVICE) \
+		CM_ROWS=$(CM_ROWS) CM_COLS=$(CM_COLS) HASH_UNITS=$(HASH_UNITS)
+
 	$(VPP) $(CLFLAGS) $(CONFIGFLAGS) --temp_dir $(BUILD_DIR) -l -o'$@' $(LIST_XO) $(LIST_REPOS) -j 8 
 	#--dk chipscope:traffic_generator_$(INTERFACE):S_AXIS_n2k \
 	#--dk chipscope:traffic_generator_$(INTERFACE):M_AXIS_k2n \

@@ -6,12 +6,23 @@
 #define DWIDTH 512
 #define TDWIDTH 16
 
+#ifndef HASH_UNITS
+#define HASH_UNITS (cm_rows)
+#endif
+
+// To be able to use macros within pragmas
+// From https://www.xilinx.com/support/answers/46111.html
+#define PRAGMA_SUB(x) _Pragma (#x)
+#define DO_PRAGMA(x) PRAGMA_SUB(x)
+
 typedef ap_axiu<DWIDTH, 1, 1, TDWIDTH> pkt;
 unsigned int cm_sketch_local[cm_rows][cm_col_count];
-#pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
 
 unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
 {
+  // Not inlining so that we can control the
+  // amount of resources by hash unit count
+  #pragma HLS INLINE off
   const unsigned char* data = (const unsigned char *)&key;
   const unsigned int m = 0x5bd1e995;
   unsigned int h = seed ^ len;
@@ -36,6 +47,7 @@ extern "C" {
 #pragma HLS INTERFACE axis port=dataOut
 #pragma HLS INTERFACE ap_ctrl_none port=return
 DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
+#pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
 
     pkt curr;
     unsigned int key;
@@ -52,7 +64,9 @@ DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
 #pragma HLS UNROLL
         unsigned hash = MurmurHash2(key, 3, cm_seeds[row]);
         unsigned index = hash % cm_col_count;
-        cm_sketch_local[row][index]++;
+        // Not reusing arrays based on: https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
+        unsigned updated_value = cm_sketch_local[row][index] + 1;
+        cm_sketch_local[row][index] = updated_value;
       }
 
       dataOut.write(curr);

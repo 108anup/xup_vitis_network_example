@@ -17,13 +17,16 @@ help:
 DEVICE ?= xilinx_u280_xdma_201920_3
 kernel_list ?= update_sketch read_sketch
 
+CM_ROWS ?= 4
+CM_COLS ?= 12
+HASH_UNITS ?= CM_ROWS
+TAG ?= "_cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)"
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)
 VPP := $(XILINX_VITIS)/bin/v++
 CLFLAGS += -t hw --platform $(DEVICE) --save-temps
-BINARY_OBJS = $(addprefix $(TEMP_DIR)/, $(addsuffix .xo, $(kernel_list)))
-
+BINARY_OBJS = $(addprefix $(TEMP_DIR)/, $(addsuffix .xo, $(addsuffix $(TAG), $(kernel_list))))
 
 .PHONY: all clean distclean
 all: check-devices check-vitis check-xrt $(BINARY_OBJS)
@@ -37,9 +40,13 @@ distclean: clean
 	rm -rf _x* .Xil
 
 # Remove $(TEMP_DIR)/ and .xo from the target name and store the result in current_kernel
-$(TEMP_DIR)/%.xo: current_kernel=$(subst $(TEMP_DIR)/,,$(subst .xo,,$@))
+$(TEMP_DIR)/%.xo: current_kernel=$(subst $(TAG),,$(subst $(TEMP_DIR)/,,$(subst .xo,,$@)))
 $(TEMP_DIR)/%.xo:
-	$(VPP) $(CLFLAGS) -k $(current_kernel) -c -o $@ src/cm_sketch.cpp
+	$(VPP) $(CLFLAGS) -k $(current_kernel) \
+	-Dcm_rows=$(CM_ROWS) \
+	-Dcm_cols=$(CM_COLS) \
+	-DHASH_UNITS=$(HASH_UNITS) \
+	-c -o $@ src/cm_sketch.cpp
 
 
 check-devices:
