@@ -11,7 +11,7 @@
 #endif
 
 #ifndef PARALLELISATION
-#define PARALLELISATION (cm_rows)
+#define PARALLELISATION (HASH_UNITS)
 #endif
 
 // To be able to use macros within pragmas
@@ -97,6 +97,10 @@ void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &sketchIn) {
   */
 
   if(!dataIn.empty()){
+    // Ideally I would have used dataIn.full() check above
+    // that would ensure that there are enough packets to batch
+    // Apparently HLS does not support full() with read only streams
+    // Hence, I am relying only on the blocking nature of read()
     parallel_pkt batch;
     for(unsigned j = 0; j<PARALLELISATION; j++){
       pkt curr = dataIn.read();

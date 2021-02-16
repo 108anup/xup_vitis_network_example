@@ -41,7 +41,7 @@ distclean: clean
 
 # Remove $(TEMP_DIR)/ and .xo from the target name and store the result in current_kernel
 $(TEMP_DIR)/%.xo: current_kernel=$(subst $(TAG),,$(subst $(TEMP_DIR)/,,$(subst .xo,,$@)))
-$(TEMP_DIR)/%.xo:
+$(TEMP_DIR)/%.xo: src/cm_sketch.cpp
 	$(VPP) $(CLFLAGS) -k $(current_kernel) \
 	-Dcm_rows=$(CM_ROWS) \
 	-Dcm_cols=$(CM_COLS) \
