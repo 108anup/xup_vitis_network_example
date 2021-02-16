@@ -175,3 +175,4 @@ endif
 	@if [[ $(DEVICE) = *"u50"* ]]; then\
 		sed -i 's/SLR2/SLR1/g' configuration_$(DESIGN)_if$(INTERFACE).tmp.ini;\
 	fi
+	sed -i 's/PARALLELISATION/$(HASH_UNITS)/g' configuration_$(DESIGN)_if$(INTERFACE).tmp.ini
