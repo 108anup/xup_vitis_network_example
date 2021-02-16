@@ -11,7 +11,7 @@
 #endif
 
 #ifndef PARALLELISATION
-#define PARALLELISATION (cm_rows)
+#define PARALLELISATION (HASH_UNITS)
 #endif
 
 // To be able to use macros within pragmas
@@ -28,9 +28,11 @@ struct parallel_pkt {
 
 unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
 {
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
   // Not inlining so that we can control the
   // amount of resources by hash unit count
-  #pragma HLS INLINE off
+
   const unsigned char* data = (const unsigned char *)&key;
   const unsigned int m = 0x5bd1e995;
   unsigned int h = seed ^ len;
@@ -46,14 +48,14 @@ unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
   return h;
 }
 
-void update_sketch_util(hls::stream<parallel_pkt> &dataIn,
-                        hls::stream<parallel_pkt> &dataOut) {
+void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
+                        hls::stream<parallel_pkt> &sketchOut) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-  if(!dataIn.empty()){
+  if(!sketchIn.empty()){
     DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
-    parallel_pkt batch = dataIn.read();
+    parallel_pkt batch = sketchIn.read();
 
     for(unsigned j = 0; j<PARALLELISATION; j++){
 #pragma HLS UNROLL
@@ -74,11 +76,11 @@ void update_sketch_util(hls::stream<parallel_pkt> &dataIn,
         cm_sketch_local[row][index] = updated_value;
       }
     }
-    dataOut.write(batch);
+    sketchOut.write(batch);
   }
 }
 
-void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &dataOut) {
+void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &sketchIn) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -94,22 +96,26 @@ void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &dataOut) {
     a certain time then send a non full batch
   */
 
-  if(dataIn.full()){
+  if(!dataIn.empty()){
+    // Ideally I would have used dataIn.full() check above
+    // that would ensure that there are enough packets to batch
+    // Apparently HLS does not support full() with read only streams
+    // Hence, I am relying only on the blocking nature of read()
     parallel_pkt batch;
     for(unsigned j = 0; j<PARALLELISATION; j++){
       pkt curr = dataIn.read();
       batch.pkts[j] = curr;
     }
-    dataOut.write(batch);
+    sketchIn.write(batch);
   }
 }
 
-void unbatch_pkts(hls::stream<parallel_pkt> &dataIn, hls::stream<pkt> &dataOut) {
+void unbatch_pkts(hls::stream<parallel_pkt> &sketchOut, hls::stream<pkt> &dataOut) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-  if(!dataIn.empty()){
-    parallel_pkt batch = dataIn.read();
+  if(!sketchOut.empty()){
+    parallel_pkt batch = sketchOut.read();
     for(unsigned j = 0; j<PARALLELISATION; j++){
       pkt curr = batch.pkts[j];
       dataOut.write(curr);
@@ -127,15 +133,21 @@ extern "C" {
     // free running kernel (always running, no need to start from host app)
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
-    // Don't know if following pragmas would work, since these streams
-    // Are connected elsewhere
-DO_PRAGMA(HLS STREAM variable=dataIn depth=PARALLELISATION)
-#pragma HLS DATA_PACK variable=dataIn
-DO_PRAGMA(HLS STREAM variable=dataOut depth=PARALLELISATION)
-#pragma HLS DATA_PACK variable=dataOut
+
+// #pragma HLS DATA_PACK variable=dataIn
+// #pragma HLS DATA_PACK variable=dataOut
+
+    // FIFO depth is controlled using connectivity.cfg
+    // DO_PRAGMA(HLS STREAM variable=dataIn depth=PARALLELISATION)
+    // DO_PRAGMA(HLS STREAM variable=dataOut depth=PARALLELISATION)
 
     static hls::stream<parallel_pkt> sketchIn;
+#pragma HLS STREAM variable=sketchIn depth=16
+#pragma HLS DATA_PACK variable=sketchIn
+
     static hls::stream<parallel_pkt> sketchOut;
+#pragma HLS STREAM variable=sketchOut depth=16
+#pragma HLS DATA_PACK variable=sketchOut
 
     // Currently this only works for 64B packets
     batch_pkts(dataIn, sketchIn);
