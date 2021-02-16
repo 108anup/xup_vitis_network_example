@@ -10,6 +10,10 @@
 #define HASH_UNITS (cm_rows)
 #endif
 
+#ifndef PARALLELISATION
+#define PARALLELISATION (cm_rows)
+#endif
+
 // To be able to use macros within pragmas
 // From https://www.xilinx.com/support/answers/46111.html
 #define PRAGMA_SUB(x) _Pragma (#x)
@@ -17,6 +21,10 @@
 
 typedef ap_axiu<DWIDTH, 1, 1, TDWIDTH> pkt;
 unsigned int cm_sketch_local[cm_rows][cm_col_count];
+
+struct parallel_pkt {
+  pkt pkts[PARALLELISATION];
+};
 
 unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
 {
@@ -38,6 +46,77 @@ unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
   return h;
 }
 
+void update_sketch_util(hls::stream<parallel_pkt> &dataIn,
+                        hls::stream<parallel_pkt> &dataOut) {
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+  if(!dataIn.empty()){
+    DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
+    parallel_pkt batch = dataIn.read();
+
+    for(unsigned j = 0; j<PARALLELISATION; j++){
+#pragma HLS UNROLL
+
+      pkt curr = batch.pkts[j];
+      unsigned key = curr.data(31, 0);
+      // (39, 0) corresponds to packet counter (using as uniform random key currently)
+
+    update_rows_loop: for(int row = 0; row < cm_rows; row++) {
+#pragma HLS UNROLL
+
+        unsigned hash = MurmurHash2(key, 3, cm_seeds[row]);
+        unsigned index = hash % cm_col_count;
+
+        // Not reusing arrays based on:
+        // https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
+        unsigned updated_value = cm_sketch_local[row][index] + 1;
+        cm_sketch_local[row][index] = updated_value;
+      }
+    }
+    dataOut.write(batch);
+  }
+}
+
+void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &dataOut) {
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+  /*
+    Current limitation:
+    All packets will be delivered if total elements
+    in the stream is a multiple of PARALLELISATION
+    If stream has packets less than PARALLELISATION
+    then they would be stuck in the dataIn stream
+
+    Fix:
+    A fix would be a timeout, such that if packets don't arrive by
+    a certain time then send a non full batch
+  */
+
+  if(dataIn.full()){
+    parallel_pkt batch;
+    for(unsigned j = 0; j<PARALLELISATION; j++){
+      pkt curr = dataIn.read();
+      batch.pkts[j] = curr;
+    }
+    dataOut.write(batch);
+  }
+}
+
+void unbatch_pkts(hls::stream<parallel_pkt> &dataIn, hls::stream<pkt> &dataOut) {
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+  if(!dataIn.empty()){
+    parallel_pkt batch = dataIn.read();
+    for(unsigned j = 0; j<PARALLELISATION; j++){
+      pkt curr = batch.pkts[j];
+      dataOut.write(curr);
+    }
+  }
+}
+
 extern "C" {
   // sits between benchmark switch and network layer
   void update_sketch(hls::stream<pkt> &dataIn,
@@ -45,32 +124,23 @@ extern "C" {
 #pragma HLS DATAFLOW
 #pragma HLS INTERFACE axis port=dataIn
 #pragma HLS INTERFACE axis port=dataOut
+    // free running kernel (always running, no need to start from host app)
 #pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
+    // Don't know if following pragmas would work, since these streams
+    // Are connected elsewhere
+DO_PRAGMA(HLS STREAM variable=dataIn depth=PARALLELISATION)
+#pragma HLS DATA_PACK variable=dataIn
+DO_PRAGMA(HLS STREAM variable=dataOut depth=PARALLELISATION)
+#pragma HLS DATA_PACK variable=dataOut
 
-    pkt curr;
-    unsigned int key;
+    static hls::stream<parallel_pkt> sketchIn;
+    static hls::stream<parallel_pkt> sketchOut;
 
-    // Only works with 64 B packets right now
-    if(!dataIn.empty()){
-      DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
-      dataIn.read(curr);
-
-      // Short
-      key = curr.data(31, 0);
-      // (39, 0) corresponds to packet counter (using as uniform random key currently)
-
-    update_rows_loop: for(int row = 0; row < cm_rows; row++) {
-#pragma HLS UNROLL
-        unsigned hash = MurmurHash2(key, 3, cm_seeds[row]);
-        unsigned index = hash % cm_col_count;
-        // Not reusing arrays based on: https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
-        unsigned updated_value = cm_sketch_local[row][index] + 1;
-        cm_sketch_local[row][index] = updated_value;
-      }
-
-      dataOut.write(curr);
-    }
+    // Currently this only works for 64B packets
+    batch_pkts(dataIn, sketchIn);
+    update_sketch_util(sketchIn, sketchOut);
+    unbatch_pkts(sketchOut, dataOut);
   }
 
   void read_sketch(unsigned int* sketch_buf) {
