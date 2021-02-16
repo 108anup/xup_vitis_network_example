@@ -78,7 +78,7 @@ void update_sketch_util(hls::stream<parallel_pkt> &dataIn,
   }
 }
 
-void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &dataOut) {
+void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &sketchIn) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -100,15 +100,15 @@ void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &dataOut) {
       pkt curr = dataIn.read();
       batch.pkts[j] = curr;
     }
-    dataOut.write(batch);
+    sketchIn.write(batch);
   }
 }
 
-void unbatch_pkts(hls::stream<parallel_pkt> &dataIn, hls::stream<pkt> &dataOut) {
+void unbatch_pkts(hls::stream<parallel_pkt> &sketchIn, hls::stream<pkt> &dataOut) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-  if(!dataIn.empty()){
+  if(!sketchIn.empty()){
     parallel_pkt batch = dataIn.read();
     for(unsigned j = 0; j<PARALLELISATION; j++){
       pkt curr = batch.pkts[j];
@@ -135,7 +135,12 @@ DO_PRAGMA(HLS STREAM variable=dataOut depth=PARALLELISATION)
 #pragma HLS DATA_PACK variable=dataOut
 
     static hls::stream<parallel_pkt> sketchIn;
+DO_PRAGMA(HLS STREAM variable=sketchIn depth=16)
+#pragma HLS DATA_PACK variable=sketchIn
+
     static hls::stream<parallel_pkt> sketchOut;
+DO_PRAGMA(HLS STREAM variable=sketchOut depth=16)
+#pragma HLS DATA_PACK variable=sketchOut
 
     // Currently this only works for 64B packets
     batch_pkts(dataIn, sketchIn);
