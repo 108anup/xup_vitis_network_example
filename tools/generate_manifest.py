@@ -26,13 +26,14 @@ mem_bench = [
                 'logcols': 12,
                 'logcols_emem': logce,
                 'thr': 1,
-                'frac': 1
+                'frac': 1,
+                'hash_units': r
             }
         ],
         'total_thr': 1
     }
-    for r in [8, 16]
-    for logce in range(12, 22, 2)
+    for r in [10]
+    for logce in range(12, 23, 2)
 ]
 
 # ground_truth = [

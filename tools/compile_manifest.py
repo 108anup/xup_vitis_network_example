@@ -7,7 +7,7 @@ from multiprocessing.pool import ThreadPool
 
 PROJECT_DIR = "../"
 STATUS_DIR = "build_status"
-PARALLELISM = 2
+PARALLELISM = 3
 
 
 def compile_manifest_util(manifest):
@@ -58,6 +58,7 @@ tp = ThreadPool(PARALLELISM)
 
 print("Total manifests:", len(manifests))
 for manifest in manifests:
+    # compile_manifest_util(manifest)
     tp.apply_async(compile_manifest_util, (manifest,))
 
 # https://stackoverflow.com/questions/35708371/purpose-of-pool-join-pool-close-in-multiprocessing
