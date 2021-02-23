@@ -32,11 +32,11 @@ def compile_manifest_util(manifest):
     print("Running: {}".format(cmd))
     fout = open(os.path.join(
         STATUS_DIR,
-        "{}-{}-{}.stdout".format(hash_units, rows, logcols)),
+        "{}-{}-{}-{}.stdout".format(hash_units, rows, logcols, logcols_emem)),
                 "w")
     ferr = open(os.path.join(
         STATUS_DIR,
-        "{}-{}-{}.stderr".format(hash_units, rows, logcols)),
+        "{}-{}-{}-{}.stderr".format(hash_units, rows, logcols, logcols_emem)),
                 "w")
     # https://stackoverflow.com/questions/4856583/how-do-i-pipe-a-subprocess-call-to-a-text-file
     p = subprocess.Popen(cmd_string, shell=True, stdout=fout, stderr=ferr)

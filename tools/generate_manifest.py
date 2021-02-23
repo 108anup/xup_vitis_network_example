@@ -23,7 +23,7 @@ mem_bench = [
         'sketches': [
             {
                 'rows': r,
-                'logcols': 12,
+                'logcols': 10,
                 'logcols_emem': logce,
                 'thr': 1,
                 'frac': 1,
@@ -32,8 +32,8 @@ mem_bench = [
         ],
         'total_thr': 1
     }
-    for r in [10]
-    for logce in range(12, 23, 2)
+    for r in [8]
+    for logce in range(10, 21, 2)
 ]
 
 # ground_truth = [
