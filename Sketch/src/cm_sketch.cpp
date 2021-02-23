@@ -26,6 +26,11 @@ struct parallel_pkt {
   pkt pkts[PARALLELISATION];
 };
 
+struct mem_update {
+  unsigned int row;
+  unsigned int index;
+};
+
 unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
 {
 #pragma HLS INLINE off
@@ -48,10 +53,11 @@ unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
   return h;
 }
 
-void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
-                        hls::stream<parallel_pkt> &sketchOut,
-                        unsigned int sketch_emem[cm_rows][cm_cols_emem],
-                        unsigned int num_packets) {
+void calc_hash_util(hls::stream<parallel_pkt> &sketchIn,
+                    hls::stream<parallel_pkt> &sketchOut,
+                    hls::stream<mem_update> &cache_stream,
+                    hls::stream<mem_update> &gmem_stream,
+                    unsigned int num_packets) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -71,22 +77,64 @@ void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
 
         unsigned hash = MurmurHash2(key, 3, cm_seeds[row]);
         unsigned index = hash % cm_col_count_total;
-        unsigned updated_value;
+        mem_update mem;
+        mem.row = row;
+        mem.index = index;
         if(index < cm_col_count){
+          cache_stream.write(mem);
           // Simulating cache when workload if uniform
           // Not reusing arrays based on:
           // https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
-          updated_value = cm_sketch_local[row][index] + 1;
-          cm_sketch_local[row][index] = updated_value;
         }
         else {
-          unsigned emem_index = index - cm_col_count;
-          updated_value = sketch_emem[row][emem_index] + 1;
-          sketch_emem[row][emem_index] = updated_value;
+          gmem_stream.write(mem);
         }
       }
     }
     sketchOut.write(batch);
+  }
+}
+
+void update_cache_util(hls::stream<mem_update> &cache_stream) {
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+  mem_update mem;
+  unsigned updated_value;
+  unsigned row;
+  unsigned index;
+
+  while(true){
+    if(!cache_stream.empty()){
+      mem = cache_stream.read();
+      row = mem.row;
+      index = mem.index;
+      updated_value = cm_sketch_local[row][index] + 1;
+      cm_sketch_local[row][index] = updated_value;
+    }
+  }
+}
+
+void update_gmem_util(hls::stream<mem_update> &gmem_stream,
+                      unsigned int sketch_emem[cm_rows][cm_cols_emem]) {
+#pragma HLS INLINE off
+#pragma HLS pipeline II=1
+
+  mem_update mem;
+  unsigned updated_value;
+  unsigned emem_index;
+  unsigned row;
+  unsigned index;
+
+  while(true){
+    if(!gmem_stream.empty()){
+      mem = gmem_stream.read();
+      row = mem.row;
+      index = mem.index;
+      emem_index = index - cm_col_count;
+      updated_value = sketch_emem[row][emem_index] + 1;
+      sketch_emem[row][emem_index] = updated_value;
+    }
   }
 }
 
@@ -149,8 +197,6 @@ extern "C" {
 #pragma HLS INTERFACE axis port=dataOut
 #pragma HLS INTERFACE m_axi port=sketch_emem bundle=gmem_in offset=slave
 #pragma HLS INTERFACE ap_ctrl_chain port=return bundle=control
-
-    // free running kernel (always running, no need to start from host app)
 #pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
 
 // #pragma HLS DATA_PACK variable=dataIn
@@ -168,9 +214,20 @@ extern "C" {
 #pragma HLS STREAM variable=sketchOut depth=16
 #pragma HLS DATA_PACK variable=sketchOut
 
+    static hls::stream<mem_update> cache_stream;
+#pragma HLS STREAM variable=cache_stream depth=64
+#pragma HLS DATA_PACK variable=cache_stream
+
+    static hls::stream<mem_update> gmem_stream;
+#pragma HLS STREAM variable=gmem_stream depth=64
+#pragma HLS DATA_PACK variable=gmem_stream
+
     // Currently this only works for 64B packets
+    // batching done to parallelize hash computations
     batch_pkts(dataIn, sketchIn, num_packets);
-    update_sketch_util(sketchIn, sketchOut, sketch_emem, num_packets);
+    calc_hash_util(sketchIn, sketchOut, cache_stream, gmem_stream, num_packets);
+    update_cache_util(cache_stream);
+    update_gmem_util(gmem_stream, sketch_emem);
     unbatch_pkts(sketchOut, dataOut, num_packets);
   }
 
