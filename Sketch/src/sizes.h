@@ -8,7 +8,12 @@
 #define cm_cols 12
 #endif
 
+#ifndef cm_cols_emem
+#define cm_cols_emem 12
+#endif
+
 const unsigned int cm_col_count = (1 << cm_cols);
+const unsigned int cm_col_count_total = cm_col_count + (1 << cm_cols_emem);
 /*
   """
   Randomly generated numbers using python script

@@ -18,21 +18,22 @@ hash_bench = [
     for r in range(1, 5)
 ]
 
-# mem_bench = [
-#     {
-#         'sketches': [
-#             {
-#                 'rows': r,
-#                 'cols': 2**logc,
-#                 'thr': 1,
-#                 'frac': 1
-#             }
-#         ],
-#         'total_thr': 1
-#     }
-#     for r in [10, 12]
-#     for logc in range(23)
-# ]
+mem_bench = [
+    {
+        'sketches': [
+            {
+                'rows': r,
+                'logcols': 12,
+                'logcols_emem': logce,
+                'thr': 1,
+                'frac': 1
+            }
+        ],
+        'total_thr': 1
+    }
+    for r in [8, 16]
+    for logce in range(12, 22, 2)
+]
 
 # ground_truth = [
 #     {
@@ -50,4 +51,4 @@ hash_bench = [
 #     for logc in range(2, 12)
 # ]
 
-yaml.dump(hash_bench, sys.stdout)
+yaml.dump(mem_bench, sys.stdout)

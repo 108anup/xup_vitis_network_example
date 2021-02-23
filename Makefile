@@ -25,8 +25,9 @@ SKETCH ?= 0
 
 CM_ROWS ?= 4
 CM_COLS ?= 12
+CM_COLS_EMEM ?= 12
 HASH_UNITS ?= 4
-TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
+TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_e$(CM_COLS_EMEM)_h$(HASH_UNITS)
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)
@@ -116,7 +117,7 @@ $(BUILD_DIR)/${XCLBIN_NAME}.xclbin:
 	make -C $(BENCHMARDIR) all DEVICE=$(DEVICE) -j2
 	make -C $(SKETCHDIR) all DEVICE=$(DEVICE) \
 		CM_ROWS=$(CM_ROWS) CM_COLS=$(CM_COLS) \
-		HASH_UNITS=$(HASH_UNITS) \
+		CM_COLS_EMEM=$(CM_COLS_EMEM) HASH_UNITS=$(HASH_UNITS) \
 		TAG=$(TAG)
 
 	$(VPP) $(CLFLAGS) $(CONFIGFLAGS) --temp_dir $(BUILD_DIR) -l -o'$@' $(LIST_XO) $(LIST_REPOS) -j 8 

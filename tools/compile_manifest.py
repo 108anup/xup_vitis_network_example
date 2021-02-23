@@ -15,15 +15,17 @@ def compile_manifest_util(manifest):
     sketch = manifest['sketches'][0]
     rows = sketch['rows']
     logcols = sketch['logcols']
+    logcols_emem = sketch['logcols_emem']
     hash_units = sketch['hash_units']
     # https://www.saltycrane.com/blog/2011/04/how-use-bash-shell-python-subprocess-instead-binsh/
     cmd = ["make", "all", "DEVICE=xilinx_u280_xdma_201920_3",
            "INTERFACE=1", "DESIGN=benchmark", "SKETCH=1",
            "CM_ROWS={}".format(rows),
            "CM_COLS={}".format(logcols),
+           "CM_COLS_EMEM={}".format(logcols_emem),
            "HASH_UNITS={}".format(hash_units)]
     cmd_string = " ".join(cmd)
-    
+
     # Just for testing if working properly
     # cmd_string = "echo \"{}\"; sleep 10".format(cmd_string)
 

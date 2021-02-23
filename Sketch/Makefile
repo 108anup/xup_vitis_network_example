@@ -19,8 +19,9 @@ kernel_list ?= update_sketch read_sketch
 
 CM_ROWS ?= 4
 CM_COLS ?= 12
+CM_COLS_EMEM ?= 12
 HASH_UNITS ?= 4
-TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
+TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_e$(CM_COLS_EMEM)_h$(HASH_UNITS)
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)
@@ -45,6 +46,7 @@ $(TEMP_DIR)/%.xo: src/cm_sketch.cpp
 	$(VPP) $(CLFLAGS) -k $(current_kernel) \
 	-Dcm_rows=$(CM_ROWS) \
 	-Dcm_cols=$(CM_COLS) \
+	-Dcm_cols_emem=$(CM_COLS_EMEM) \
 	-DHASH_UNITS=$(HASH_UNITS) \
 	-c -o $@ src/cm_sketch.cpp
 

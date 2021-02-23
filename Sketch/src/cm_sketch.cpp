@@ -49,11 +49,13 @@ unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
 }
 
 void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
-                        hls::stream<parallel_pkt> &sketchOut) {
+                        hls::stream<parallel_pkt> &sketchOut,
+                        unsigned int sketch_emem[cm_rows][cm_cols_emem],
+                        unsigned int num_packets) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-  if(!sketchIn.empty()){
+  for(unsigned i = 0; i<num_packets/PARALLELISATION; i++){
     DO_PRAGMA(HLS ALLOCATION function instances=MurmurHash2 limit=HASH_UNITS)
     parallel_pkt batch = sketchIn.read();
 
@@ -68,19 +70,29 @@ void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
 #pragma HLS UNROLL
 
         unsigned hash = MurmurHash2(key, 3, cm_seeds[row]);
-        unsigned index = hash % cm_col_count;
-
-        // Not reusing arrays based on:
-        // https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
-        unsigned updated_value = cm_sketch_local[row][index] + 1;
-        cm_sketch_local[row][index] = updated_value;
+        unsigned index = hash % cm_col_count_total;
+        unsigned updated_value;
+        if(index < cm_col_count){
+          // Simulating cache when workload if uniform
+          // Not reusing arrays based on:
+          // https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
+          updated_value = cm_sketch_local[row][index] + 1;
+          cm_sketch_local[row][index] = updated_value;
+        }
+        else {
+          unsigned emem_index = index - cm_col_count;
+          updated_value = sketch_emem[row][emem_index] + 1;
+          sketch_emem[row][emem_index] = updated_value;
+        }
       }
     }
     sketchOut.write(batch);
   }
 }
 
-void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &sketchIn) {
+void batch_pkts(hls::stream<pkt> &dataIn,
+                hls::stream<parallel_pkt> &sketchIn,
+                unsigned int num_packets) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -96,7 +108,7 @@ void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &sketchIn) {
     a certain time then send a non full batch
   */
 
-  if(!dataIn.empty()){
+  for(unsigned i = 0; i<num_packets/PARALLELISATION; i++){
     // Ideally I would have used dataIn.full() check above
     // that would ensure that there are enough packets to batch
     // Apparently HLS does not support full() with read only streams
@@ -110,11 +122,13 @@ void batch_pkts(hls::stream<pkt> &dataIn, hls::stream<parallel_pkt> &sketchIn) {
   }
 }
 
-void unbatch_pkts(hls::stream<parallel_pkt> &sketchOut, hls::stream<pkt> &dataOut) {
+void unbatch_pkts(hls::stream<parallel_pkt> &sketchOut,
+                  hls::stream<pkt> &dataOut,
+                  unsigned int num_packets) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
-  if(!sketchOut.empty()){
+  for(unsigned i = 0; i<num_packets/PARALLELISATION; i++){
     parallel_pkt batch = sketchOut.read();
     for(unsigned j = 0; j<PARALLELISATION; j++){
       pkt curr = batch.pkts[j];
@@ -126,12 +140,17 @@ void unbatch_pkts(hls::stream<parallel_pkt> &sketchOut, hls::stream<pkt> &dataOu
 extern "C" {
   // sits between benchmark switch and network layer
   void update_sketch(hls::stream<pkt> &dataIn,
-                     hls::stream<pkt> &dataOut) {
+                     hls::stream<pkt> &dataOut,
+                     unsigned int sketch_emem[cm_rows][cm_cols_emem],
+                     unsigned int num_packets
+                     ) {
 #pragma HLS DATAFLOW
 #pragma HLS INTERFACE axis port=dataIn
 #pragma HLS INTERFACE axis port=dataOut
+#pragma HLS INTERFACE m_axi port=sketch_emem bundle=gmem_in offset=slave
+#pragma HLS INTERFACE ap_ctrl_chain port=return bundle=control
+
     // free running kernel (always running, no need to start from host app)
-#pragma HLS INTERFACE ap_ctrl_none port=return
 #pragma HLS ARRAY_PARTITION variable = cm_sketch_local complete dim = 1
 
 // #pragma HLS DATA_PACK variable=dataIn
@@ -150,14 +169,16 @@ extern "C" {
 #pragma HLS DATA_PACK variable=sketchOut
 
     // Currently this only works for 64B packets
-    batch_pkts(dataIn, sketchIn);
-    update_sketch_util(sketchIn, sketchOut);
-    unbatch_pkts(sketchOut, dataOut);
+    batch_pkts(dataIn, sketchIn, num_packets);
+    update_sketch_util(sketchIn, sketchOut, sketch_emem, num_packets);
+    unbatch_pkts(sketchOut, dataOut, num_packets);
   }
 
   void read_sketch(unsigned int* sketch_buf) {
-#pragma HLS INTERFACE m_axi port=sketch_buf bundle=gmem offset=slave
-  write_cm_sketch: for(unsigned iter = 0, row = 0, col = 0;
+#pragma HLS INTERFACE m_axi port=sketch_buf bundle=gmem_out offset=slave
+#pragma HLS INTERFACE ap_ctrl_chain port=return bundle=control
+
+    write_cm_sketch: for(unsigned iter = 0, row = 0, col = 0;
                        iter < cm_col_count * cm_rows; iter++, col++) {
 #pragma HLS PIPELINE II=1
       if(col == cm_col_count) {
