@@ -7,7 +7,7 @@ from multiprocessing.pool import ThreadPool
 
 PROJECT_DIR = "../"
 STATUS_DIR = "build_status"
-PARALLELISM = 2
+PARALLELISM = 3
 
 
 def compile_manifest_util(manifest):

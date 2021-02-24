@@ -10,13 +10,46 @@ hash_bench = [
                 'logcols': 6,
                 'thr': 1,
                 'frac': 1,
-                'hash_units': 4
+                'hash_units': 8
             }
         ],
         'total_thr': 1
     }
-    for r in range(1, 5)
+    for r in range(1, 13)
 ]
+
+mem_bench = [
+    {
+        'sketches': [
+            {
+                'rows': 8,
+                'logcols': lc,
+                'thr': 1,
+                'frac': 1,
+                'hash_units': 8
+            }
+        ],
+        'total_thr': 1
+    }
+    for lc in range(6, 12, 2)
+]
+
+amdahls_cpu_bench = [
+    {
+        'sketches': [
+            {
+                'rows': 12,
+                'logcols': 6,
+                'thr': 1,
+                'frac': 1,
+                'hash_units': h
+            }
+        ],
+        'total_thr': 1
+    }
+    for h in range(1, 7)
+]
+
 
 # mem_bench = [
 #     {
@@ -50,4 +83,4 @@ hash_bench = [
 #     for logc in range(2, 12)
 # ]
 
-yaml.dump(hash_bench, sys.stdout)
+yaml.dump(amdahls_cpu_bench, sys.stdout)
