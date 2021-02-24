@@ -10,12 +10,12 @@ hash_bench = [
                 'logcols': 6,
                 'thr': 1,
                 'frac': 1,
-                'hash_units': 4
+                'hash_units': 8
             }
         ],
         'total_thr': 1
     }
-    for r in range(1, 5)
+    for r in range(1, 13)
 ]
 
 mem_bench = [
@@ -23,7 +23,7 @@ mem_bench = [
         'sketches': [
             {
                 'rows': r,
-                'logcols': logc,
+                'logcols': lc,
                 'thr': 1,
                 'frac': 1,
                 'hash_units': r
@@ -32,7 +32,7 @@ mem_bench = [
         'total_thr': 1
     }
     for r in [8, 10]
-    for logc in [6, 8, 10]
+    for lc in range(6, 12, 2)
 ]
 
 amdahls_hash = [
@@ -51,7 +51,6 @@ amdahls_hash = [
     for h in range(1, 7)
 ]
 
-
 # ground_truth = [
 #     {
 #         'sketches': [
@@ -69,3 +68,5 @@ amdahls_hash = [
 # ]
 
 yaml.dump(amdahls_hash, sys.stdout)
+
+
