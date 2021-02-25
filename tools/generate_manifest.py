@@ -56,7 +56,7 @@ gt_list = [(h, r, logc)
            for h in [1, 2, 4]
            for r in [3, 6, 9]
            for logc in [6, 8, 10]]
-random.shuffle(gt_list)
+random.Random(4).shuffle(gt_list)
 sname = 'COUNT_SKETCH'
 ground_truth = [
     {
@@ -64,7 +64,7 @@ ground_truth = [
             {
                 'sketch_name': sname,
                 'rows': r,
-                'cols': 4**logc,
+                'logcols': logc,
                 'thr': 1,
                 'frac': 1,
                 'hash_units': h
@@ -75,6 +75,4 @@ ground_truth = [
     for (h, r, logc) in gt_list[:6]
 ]
 
-yaml.dump(amdahls_hash, sys.stdout)
-
-
+yaml.dump(ground_truth, sys.stdout)
