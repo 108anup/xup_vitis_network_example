@@ -90,13 +90,15 @@ void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
 #if defined (COUNT_SKETCH)
         unsigned filter = MurmurHash2(key, 3, filter_seeds[row]) % 2;
         unsigned updated_value = cm_sketch_local[row][index] + 1 - 2*filter;
+        cm_sketch_local[row][index] = updated_value;
 #elif defined (UNIVMON)
         unsigned filter = MurmurHash2(key, 3, filter_seeds[row]) % 2;
         unsigned updated_value = cm_sketch_local[level][row][index] + 1 - 2*filter;
+        cm_sketch_local[level][row][index] = updated_value;
 #else
         unsigned updated_value = cm_sketch_local[row][index] + 1;
-#endif
         cm_sketch_local[row][index] = updated_value;
+#endif
       }
     }
     sketchOut.write(batch);
