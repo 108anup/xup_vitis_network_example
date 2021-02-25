@@ -180,6 +180,23 @@ extern "C" {
 
   void read_sketch(unsigned int* sketch_buf) {
 #pragma HLS INTERFACE m_axi port=sketch_buf bundle=gmem offset=slave
+
+#ifdef UNIVMON
+  write_cm_sketch: for(unsigned iter = 0, level=0, row = 0, col = 0;
+                       iter < cm_col_count * cm_rows * univmon_levels;
+                       iter++, col++) {
+#pragma HLS PIPELINE II=1
+    if(col == cm_col_count) {
+      col = 0;
+      row++;
+    }
+    if(row == cm_rows) {
+      row = 0;
+      level++;
+    }
+    sketch_buf[iter] = cm_sketch_local[level][row][col];
+  }
+#else
   write_cm_sketch: for(unsigned iter = 0, row = 0, col = 0;
                        iter < cm_col_count * cm_rows; iter++, col++) {
 #pragma HLS PIPELINE II=1
@@ -190,4 +207,7 @@ extern "C" {
       sketch_buf[iter] = cm_sketch_local[row][col];
     }
   }
+#endif
+}
+
 }
