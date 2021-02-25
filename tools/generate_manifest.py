@@ -32,7 +32,7 @@ mem_bench = [
         ],
         'total_thr': 1
     }
-    for r in [8]
+    for r in [8, 10]
     for logce in range(10, 21, 2)
 ]
 
@@ -52,4 +52,21 @@ mem_bench = [
 #     for logc in range(2, 12)
 # ]
 
-yaml.dump(mem_bench, sys.stdout)
+hash_bench_more_hash = [
+    {
+        'sketches': [
+            {
+                'rows': r,
+                'logcols': 6,
+                'thr': 1,
+                'frac': 1,
+                'hash_units': 4
+            }
+        ],
+        'total_thr': 1
+    }
+    for r in range(5, 13)
+]
+
+
+yaml.dump(hash_bench_more_hash, sys.stdout)
