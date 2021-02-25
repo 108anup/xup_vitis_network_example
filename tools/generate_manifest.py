@@ -75,4 +75,33 @@ ground_truth = [
     for (h, r, logc) in gt_list[:6]
 ]
 
-yaml.dump(ground_truth, sys.stdout)
+# Univmon
+gt_list = [(l, h, r, logc)
+           for h in [2, 4]
+           for (l, r, logc) in [
+                   (16, 3, 8),
+                   (4, 6, 6),
+                   (8, 9, 8)
+           ]
+]
+sname = 'UNIVMON'
+ground_truth_univmon = [
+    {
+        'sketches': [
+            {
+                'sketch_name': sname,
+                'rows': r,
+                'logcols': logc,
+                'thr': 1,
+                'frac': 1,
+                'hash_units': h,
+                'univmon_levels': l
+            }
+        ],
+        'total_thr': 1
+    }
+    for (l, h, r, logc) in gt_list
+]
+
+
+yaml.dump(ground_truth_univmon, sys.stdout)
