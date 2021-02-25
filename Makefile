@@ -26,7 +26,17 @@ SKETCH ?= 0
 CM_ROWS ?= 4
 CM_COLS ?= 12
 HASH_UNITS ?= 4
+UNIVMON_LEVELS ?= 16
+SKETCH_NAME ?= COUNT_MIN_SKETCH
+
+# Set tag
+ifeq (COUNT_SKETCH,$(SKETCH_NAME))
+TAG ?= _cs_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
+else ifeq (UNIVMON,$(SKETCH_NAME))
+TAG ?= _univmon_l$(UNIVMON_LEVELS)_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
+else
 TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
+endif
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)
@@ -70,7 +80,7 @@ else
 	LIST_XO += $(BASICDIR)$(TEMP_DIR)/krnl_mm2s.xo
 	LIST_XO += $(BASICDIR)$(TEMP_DIR)/krnl_s2mm.xo
 endif
-ifeq (1, $(SKETCH))
+ifeq (1,$(SKETCH))
 	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/update_sketch$(TAG).xo
 	LIST_XO += $(SKETCHDIR)$(TEMP_DIR)/read_sketch$(TAG).xo
 endif
@@ -117,6 +127,8 @@ $(BUILD_DIR)/${XCLBIN_NAME}.xclbin:
 	make -C $(SKETCHDIR) all DEVICE=$(DEVICE) \
 		CM_ROWS=$(CM_ROWS) CM_COLS=$(CM_COLS) \
 		HASH_UNITS=$(HASH_UNITS) \
+		SKETCH_NAME=$(SKETCH_NAME) \
+		UNIVMON_LEVELS=$(UNIVMON_LEVELS) \
 		TAG=$(TAG)
 
 	$(VPP) $(CLFLAGS) $(CONFIGFLAGS) --temp_dir $(BUILD_DIR) -l -o'$@' $(LIST_XO) $(LIST_REPOS) -j 8 

@@ -20,7 +20,13 @@
 #define DO_PRAGMA(x) PRAGMA_SUB(x)
 
 typedef ap_axiu<DWIDTH, 1, 1, TDWIDTH> pkt;
+
+// Sketch BRAM
+#if defined(UNIVMON)
+unsigned int cm_sketch_local[univmon_levels][cm_rows][cm_col_count];
+#else
 unsigned int cm_sketch_local[cm_rows][cm_col_count];
+#endif
 
 struct parallel_pkt {
   pkt pkts[PARALLELISATION];
@@ -64,6 +70,13 @@ void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
       unsigned key = curr.data(31, 0);
       // (39, 0) corresponds to packet counter (using as uniform random key currently)
 
+#if defined(UNIVMON)
+      unsigned level = __builtin_clz(MurmurHash2(key, 3, level_seeds[0]));
+      if(level >= univmon_levels) {
+        level = univmon_levels-1;
+      }
+#endif
+
     update_rows_loop: for(int row = 0; row < cm_rows; row++) {
 #pragma HLS UNROLL
 
@@ -72,7 +85,17 @@ void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
 
         // Not reusing arrays based on:
         // https://fling.seas.upenn.edu/~giesen/dynamic/wordpress/vivado-hls-learnings/
+
+        // Sketch implementations
+#if defined (COUNT_SKETCH)
+        unsigned filter = MurmurHash2(key, 3, filter_seeds[row]) % 2;
+        unsigned updated_value = cm_sketch_local[row][index] + 1 - 2*filter;
+#elif defined (UNIVMON)
+        unsigned filter = MurmurHash2(key, 3, filter_seeds[row]) % 2;
+        unsigned updated_value = cm_sketch_local[level][row][index] + 1 - 2*filter;
+#else
         unsigned updated_value = cm_sketch_local[row][index] + 1;
+#endif
         cm_sketch_local[row][index] = updated_value;
       }
     }

@@ -20,7 +20,9 @@ kernel_list ?= update_sketch read_sketch
 CM_ROWS ?= 4
 CM_COLS ?= 12
 HASH_UNITS ?= 4
+UNIVMON_LEVELS ?= 16
 TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_h$(HASH_UNITS)
+SKETCH_NAME ?= COUNT_MIN_SKETCH
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
 TEMP_DIR := _x.$(XSA)
@@ -46,6 +48,8 @@ $(TEMP_DIR)/%.xo: src/cm_sketch.cpp
 	-Dcm_rows=$(CM_ROWS) \
 	-Dcm_cols=$(CM_COLS) \
 	-DHASH_UNITS=$(HASH_UNITS) \
+	-D$(SKETCH_NAME)=1 \
+	-Dunivmon_levels=$(UNIVMON_LEVELS) \
 	-c -o $@ src/cm_sketch.cpp
 
 
