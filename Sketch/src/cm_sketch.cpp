@@ -23,7 +23,7 @@ typedef ap_axiu<DWIDTH, 1, 1, TDWIDTH> pkt;
 
 // Sketch BRAM
 #if defined(UNIVMON)
-unsigned int cm_sketch_local[univmon_levels][cm_rows][cm_col_count];
+unsigned int cm_sketch_local[cm_rows][univmon_levels][cm_col_count];
 #else
 unsigned int cm_sketch_local[cm_rows][cm_col_count];
 #endif
@@ -93,8 +93,8 @@ void update_sketch_util(hls::stream<parallel_pkt> &sketchIn,
         cm_sketch_local[row][index] = updated_value;
 #elif defined (UNIVMON)
         unsigned filter = MurmurHash2(key, 3, filter_seeds[row]) % 2;
-        unsigned updated_value = cm_sketch_local[level][row][index] + 1 - 2*filter;
-        cm_sketch_local[level][row][index] = updated_value;
+        unsigned updated_value = cm_sketch_local[row][level][index] + 1 - 2*filter;
+        cm_sketch_local[row][level][index] = updated_value;
 #else
         unsigned updated_value = cm_sketch_local[row][index] + 1;
         cm_sketch_local[row][index] = updated_value;
@@ -190,13 +190,13 @@ extern "C" {
 #pragma HLS PIPELINE II=1
     if(col == cm_col_count) {
       col = 0;
-      row++;
-    }
-    if(row == cm_rows) {
-      row = 0;
       level++;
     }
-    sketch_buf[iter] = cm_sketch_local[level][row][col];
+    if(level == univmon_levels) {
+      level = 0;
+      row++;
+    }
+    sketch_buf[iter] = cm_sketch_local[row][level][col];
   }
 #else
   write_cm_sketch: for(unsigned iter = 0, row = 0, col = 0;
