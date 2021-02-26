@@ -20,7 +20,13 @@
 #define DO_PRAGMA(x) PRAGMA_SUB(x)
 
 typedef ap_axiu<DWIDTH, 1, 1, TDWIDTH> pkt;
+
+// Sketch BRAM
+#if defined(UNIVMON)
+unsigned int cm_sketch_local[cm_rows][univmon_levels][cm_col_count];
+#else
 unsigned int cm_sketch_local[cm_rows][cm_col_count];
+#endif
 
 struct parallel_pkt {
   pkt pkts[PARALLELISATION];
@@ -29,6 +35,10 @@ struct parallel_pkt {
 struct mem_update {
   unsigned int row;
   unsigned int index;
+  unsigned int value;
+#if defined(UNIVMON)
+  unsigned int level;
+#endif
 };
 
 unsigned int MurmurHash2(unsigned int key, int len, unsigned int seed)
@@ -72,14 +82,35 @@ void calc_hash_util(hls::stream<parallel_pkt> &sketchIn,
       unsigned key = curr.data(31, 0);
       // (39, 0) corresponds to packet counter (using as uniform random key currently)
 
+#if defined(UNIVMON)
+      unsigned level = __builtin_clz(MurmurHash2(key, 3, level_seeds[0]));
+      if(level >= univmon_levels) {
+        level = univmon_levels-1;
+      }
+#endif
+
     update_rows_loop: for(int row = 0; row < cm_rows; row++) {
 #pragma HLS UNROLL
 
         unsigned hash = MurmurHash2(key, 3, cm_seeds[row]);
         unsigned index = hash % cm_col_count_total;
         mem_update mem;
+        unsigned int value;
         mem.row = row;
         mem.index = index;
+
+#if defined (COUNT_SKETCH) || defined (UNIVMON)
+        unsigned filter = MurmurHash2(key, 3, filter_seeds[row]) % 2;
+        value = 1 - 2*filter;
+#else
+        value = 1;
+#endif
+        mem.value = value;
+
+#if defined (UNIVMON)
+        mem.level = level
+#endif
+
         if(index < cm_col_count){
           cache_stream.write(mem);
           // Simulating cache when workload if uniform
@@ -103,20 +134,36 @@ void update_cache_util(hls::stream<mem_update> &cache_stream) {
   unsigned updated_value;
   unsigned row;
   unsigned index;
+  unsigned value;
+#if defined(UNIVMON)
+  unsigned level;
+#endif
 
   while(true){
     if(!cache_stream.empty()){
       mem = cache_stream.read();
       row = mem.row;
       index = mem.index;
-      updated_value = cm_sketch_local[row][index] + 1;
+      value = mem.value;
+#if defined(UNIVMON)
+      level = mem.level;
+      updated_value = cm_sketch_local[row][level][index] + value;
+      cm_sketch_local[row][level][index] = updated_value;
+#else
+      updated_value = cm_sketch_local[row][index] + value;
       cm_sketch_local[row][index] = updated_value;
+#endif
     }
   }
 }
 
 void update_gmem_util(hls::stream<mem_update> &gmem_stream,
-                      unsigned int sketch_emem[cm_rows][cm_cols_emem]) {
+#if defined(UNIVMON)
+                      unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count];
+#else
+                      unsigned int sketch_emem[cm_rows][cm_cols_emem],
+#endif
+                      ) {
 #pragma HLS INLINE off
 #pragma HLS pipeline II=1
 
@@ -125,6 +172,10 @@ void update_gmem_util(hls::stream<mem_update> &gmem_stream,
   unsigned emem_index;
   unsigned row;
   unsigned index;
+#if defined(UNIVMON)
+  unsigned level;
+#endif
+
 
   while(true){
     if(!gmem_stream.empty()){
@@ -132,8 +183,15 @@ void update_gmem_util(hls::stream<mem_update> &gmem_stream,
       row = mem.row;
       index = mem.index;
       emem_index = index - cm_col_count;
-      updated_value = sketch_emem[row][emem_index] + 1;
+      value = mem.value;
+#if defined(UNIVMON)
+      level = mem.level;
+      updated_value = sketch_emem[row][level][emem_index] + value;
+      sketch_emem[row][level][emem_index] = updated_value;
+#else
+      updated_value = sketch_emem[row][emem_index] + value;
       sketch_emem[row][emem_index] = updated_value;
+#endif
     }
   }
 }
@@ -187,9 +245,12 @@ void unbatch_pkts(hls::stream<parallel_pkt> &sketchOut,
 
 extern "C" {
   // sits between benchmark switch and network layer
-  void update_sketch(hls::stream<pkt> &dataIn,
-                     hls::stream<pkt> &dataOut,
+  void update_sketch(hls::stream<pkt> &dataIn, hls::stream<pkt> &dataOut,
+#if defined(UNIVMON)
+                     unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count];
+#else
                      unsigned int sketch_emem[cm_rows][cm_cols_emem],
+#endif
                      unsigned int num_packets
                      ) {
 #pragma HLS DATAFLOW
@@ -235,7 +296,23 @@ extern "C" {
 #pragma HLS INTERFACE m_axi port=sketch_buf bundle=gmem_out offset=slave
 #pragma HLS INTERFACE ap_ctrl_chain port=return bundle=control
 
-    write_cm_sketch: for(unsigned iter = 0, row = 0, col = 0;
+#ifdef UNIVMON
+  write_cm_sketch: for(unsigned iter = 0, level=0, row = 0, col = 0;
+                       iter < cm_col_count * cm_rows * univmon_levels;
+                       iter++, col++) {
+#pragma HLS PIPELINE II=1
+      if(col == cm_col_count) {
+        col = 0;
+        level++;
+      }
+      if(level == univmon_levels) {
+        level = 0;
+        row++;
+      }
+      sketch_buf[iter] = cm_sketch_local[row][level][col];
+    }
+#else
+  write_cm_sketch: for(unsigned iter = 0, row = 0, col = 0;
                        iter < cm_col_count * cm_rows; iter++, col++) {
 #pragma HLS PIPELINE II=1
       if(col == cm_col_count) {
@@ -244,5 +321,6 @@ extern "C" {
       }
       sketch_buf[iter] = cm_sketch_local[row][col];
     }
+#endif
   }
 }
