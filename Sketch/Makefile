@@ -21,6 +21,8 @@ CM_ROWS ?= 4
 CM_COLS ?= 12
 CM_COLS_EMEM ?= 12
 HASH_UNITS ?= 4
+UNIVMON_LEVELS ?= 16
+SKETCH_NAME ?= COUNT_MIN_SKETCH
 TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_e$(CM_COLS_EMEM)_h$(HASH_UNITS)
 
 XSA := $(strip $(patsubst %.xpfm, % , $(shell basename $(DEVICE))))
@@ -48,6 +50,8 @@ $(TEMP_DIR)/%.xo: src/cm_sketch.cpp
 	-Dcm_cols=$(CM_COLS) \
 	-Dcm_cols_emem=$(CM_COLS_EMEM) \
 	-DHASH_UNITS=$(HASH_UNITS) \
+	-D$(SKETCH_NAME)=1 \
+	-Dunivmon_levels=$(UNIVMON_LEVELS) \
 	-c -o $@ src/cm_sketch.cpp
 
 

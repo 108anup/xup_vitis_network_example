@@ -13,6 +13,14 @@ PARALLELISM = 3
 def compile_manifest_util(manifest):
     # Currently only implementing one sketch at a time
     sketch = manifest['sketches'][0]
+    sketch_name = 'COUNT_MIN_SKETCH'
+    if('sketch_name' in sketch):
+        sketch_name = sketch['sketch_name']
+
+    univmon_levels = 16
+    if(sketch_name == 'UNIVMON' and 'univmon_levels' in sketch):
+        univmon_levels = sketch['univmon_levels']
+
     rows = sketch['rows']
     logcols = sketch['logcols']
     logcols_emem = sketch['logcols_emem']
@@ -23,21 +31,25 @@ def compile_manifest_util(manifest):
            "CM_ROWS={}".format(rows),
            "CM_COLS={}".format(logcols),
            "CM_COLS_EMEM={}".format(logcols_emem),
-           "HASH_UNITS={}".format(hash_units)]
+           "HASH_UNITS={}".format(hash_units),
+           "SKETCH_NAME={}".format(sketch_name),
+           "UNIVMON_LEVELS={}".format(univmon_levels)
+           ]
     cmd_string = " ".join(cmd)
 
     # Just for testing if working properly
     # cmd_string = "echo \"{}\"; sleep 10".format(cmd_string)
 
+    tag = "{}-r{}-c{}-e{}-h{}".format(sketch_name, rows,
+                                      logcols, logcols_emem, hash_units)
+    if(sketch_name == 'UNIVMON'):
+        tag = "{}-l{}-r{}-c{}-e{}-h{}".format(
+            sketch_name, univmon_levels, rows,
+            logcols, logcols_emem, hash_units)
+
     print("Running: {}".format(cmd))
-    fout = open(os.path.join(
-        STATUS_DIR,
-        "{}-{}-{}-{}.stdout".format(hash_units, rows, logcols, logcols_emem)),
-                "w")
-    ferr = open(os.path.join(
-        STATUS_DIR,
-        "{}-{}-{}-{}.stderr".format(hash_units, rows, logcols, logcols_emem)),
-                "w")
+    fout = open(os.path.join(STATUS_DIR, "{}.stdout".format(tag)), "w")
+    ferr = open(os.path.join(STATUS_DIR, "{}.stderr".format(tag)), "w")
     # https://stackoverflow.com/questions/4856583/how-do-i-pipe-a-subprocess-call-to-a-text-file
     p = subprocess.Popen(cmd_string, shell=True, stdout=fout, stderr=ferr)
     p.wait()
