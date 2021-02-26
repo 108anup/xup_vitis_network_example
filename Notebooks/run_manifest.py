@@ -12,8 +12,8 @@ PROJECT_ROOT = "../"
 XCLBINS_DIR = "/home/aliu/xclbins"
 
 # TODO: Take from cli
-XCLBINS_DIR = os.path.join(XCLBINS_DIR, "gmem_full")
-manifests_file_path = os.path.join(PROJECT_ROOT, "tools/gmem.yml")
+XCLBINS_DIR = os.path.join(XCLBINS_DIR, "count-sketch-emem")
+manifests_file_path = os.path.join(PROJECT_ROOT, "tools/manifests/ground_truth_count-sketch-emem.yml")
 manifests = None
 with open(manifests_file_path) as f:
     manifests = yaml.safe_load(f)
@@ -70,7 +70,7 @@ def get_throughput(xclbin, sketch_manifest):
     ol_w1_tg.register_map.mode = benchmark_mode.index('CONSUMER')
     ol_w1_tg.register_map.CTRL.AP_START = 1
     
-    num_packets = 1000_000
+    num_packets = 200000
     
     # Checking if using gmem
     using_gmem = False
@@ -132,20 +132,43 @@ def get_throughput(xclbin, sketch_manifest):
     return throughput
 
 
-prefix = "benchmark.intf1.sketch1_cm_"
+prefix = "benchmark.intf1.sketch1_"
 suffix = ".xilinx_u280_xdma_201920_3"
 binary_file_name = "vnx_benchmark_if1.xclbin"
+sketch2tag = {
+    'COUNT_MIN_SKETCH': "cm",
+    'COUNT_SKETCH': "cs",
+    'UNIVMON': "univmon"
+}
+csvname = {
+    'COUNT_MIN_SKETCH': "cm-sketch",
+    'COUNT_SKETCH': "count-sketch",
+    'UNIVMON': "univmon"
+}
 results = []
 for manifest in manifests:
     sketch = manifest['sketches'][0]
+    sname = 'COUNT_MIN_SKETCH'
+    if('sketch_name' in sketch):
+        sname = sketch['sketch_name']
+    univmon_levels = 16
+    if(sname == 'UNIVMON' and 'univmon_levels' in sketch):
+        univmon_levels = sketch['univmon_levels']
     r = sketch['rows']
     c = sketch['logcols']
     h = sketch['hash_units']
-    tag = "r{}_c{}_h{}".format(r, c, h)
+
     lce = None
+    lce_tag = ""
     if('logcols_emem' in sketch):
         lce = sketch['logcols_emem']
-        tag = "r{}_c{}_e{}_h{}".format(r, c, lce, h)
+        lce_tag = "_e{}".format(lce)
+
+    tag = "{}_r{}_c{}{}_h{}".format(sketch2tag[sname], r, c, lce_tag, h)
+    if(sname == 'UNIVMON'):
+        tag = "{}_l{}_r{}_c{}{}_h{}".format(sketch2tag[sname], univmon_levels, 
+                                            r, c, lce_tag, h)
+
     binary_file_dir = prefix + tag + suffix
     binary_file_path = os.path.join(
         XCLBINS_DIR, os.path.join(binary_file_dir, binary_file_name))
