@@ -159,9 +159,9 @@ void update_cache_util(hls::stream<mem_update> &cache_stream) {
 
 void update_gmem_util(hls::stream<mem_update> &gmem_stream,
 #if defined(UNIVMON)
-                      unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count];
+                      unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count]
 #else
-                      unsigned int sketch_emem[cm_rows][cm_cols_emem],
+                      unsigned int sketch_emem[cm_rows][cm_cols_emem]
 #endif
                       ) {
 #pragma HLS INLINE off
@@ -172,6 +172,7 @@ void update_gmem_util(hls::stream<mem_update> &gmem_stream,
   unsigned emem_index;
   unsigned row;
   unsigned index;
+  unsigned value;
 #if defined(UNIVMON)
   unsigned level;
 #endif

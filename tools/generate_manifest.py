@@ -82,6 +82,7 @@ ground_truth = [
                 'sketch_name': sname,
                 'rows': r,
                 'logcols': 10,
+                'logcols_emem': logce,
                 'thr': 1,
                 'frac': 1,
                 'hash_units': h
@@ -122,4 +123,4 @@ ground_truth_univmon = [
     for (l, h, r, logce) in gt_list
 ]
 
-yaml.dump(hash_bench_more_hash, sys.stdout)
+yaml.dump(ground_truth, sys.stdout)
