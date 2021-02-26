@@ -181,7 +181,8 @@ extern "C" {
   }
 
   void read_sketch(unsigned int* sketch_buf) {
-#pragma HLS INTERFACE m_axi port=sketch_buf bundle=gmem offset=slave
+#pragma HLS INTERFACE m_axi port=sketch_buf bundle=gmem_out offset=slave
+#pragma HLS INTERFACE ap_ctrl_chain port=return bundle=control
 
 #ifdef UNIVMON
   write_cm_sketch: for(unsigned iter = 0, level=0, row = 0, col = 0;
