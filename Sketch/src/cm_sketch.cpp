@@ -208,8 +208,6 @@ extern "C" {
       }
       sketch_buf[iter] = cm_sketch_local[row][col];
     }
-  }
 #endif
-}
-
+  }
 }
