@@ -248,7 +248,7 @@ extern "C" {
   // sits between benchmark switch and network layer
   void update_sketch(hls::stream<pkt> &dataIn, hls::stream<pkt> &dataOut,
 #if defined(UNIVMON)
-                     unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count];
+                     unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count],
 #else
                      unsigned int sketch_emem[cm_rows][cm_cols_emem],
 #endif
