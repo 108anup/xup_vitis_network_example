@@ -21,7 +21,8 @@ CM_ROWS ?= 4
 CM_COLS ?= 12
 CM_COLS_EMEM ?= 12
 HASH_UNITS ?= 4
-UNIVMON_LEVELS ?= 16
+UNIVMON_LEVELS ?= 8
+UNIVMON_LEVELS_EMEM ?= 8
 SKETCH_NAME ?= COUNT_MIN_SKETCH
 TAG ?= _cm_r$(CM_ROWS)_c$(CM_COLS)_e$(CM_COLS_EMEM)_h$(HASH_UNITS)
 
@@ -52,6 +53,7 @@ $(TEMP_DIR)/%.xo: src/cm_sketch.cpp
 	-DHASH_UNITS=$(HASH_UNITS) \
 	-D$(SKETCH_NAME)=1 \
 	-Dunivmon_levels=$(UNIVMON_LEVELS) \
+	-Dunivmon_levels_emem=$(UNIVMON_LEVELS_EMEM) \
 	-c -o $@ src/cm_sketch.cpp
 
 

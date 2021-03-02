@@ -13,11 +13,23 @@
 #endif
 
 #ifndef univmon_levels
-#define univmon_levels 16
+#define univmon_levels 8
 #endif
 
+#ifndef univmon_levels_emem
+#define univmon_levels_emem 8
+#endif
+
+
 const unsigned int cm_col_count = (1 << cm_cols);
-const unsigned int cm_col_count_total = cm_col_count + (1 << cm_cols_emem);
+const unsigned int cm_col_emem_count = (1 << cm_cols_emem);
+const unsigned int total_univmon_levels = univmon_levels + univmon_levels_emem;
+#if defined(UNIVMON)
+// Ensure cm_col_count = cm_col_emem_count
+const unsigned int cm_col_count_total = cm_col_count;
+#else
+const unsigned int cm_col_count_total = cm_col_count + cm_col_emem_count;
+#endif
 /*
   """
   Randomly generated numbers using python script

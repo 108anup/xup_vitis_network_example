@@ -95,12 +95,12 @@ ground_truth = [
 
 # Univmon
 gt_list = [
-    (l, h, r, logce)
+    (l, le, h, r)
     for h in [2, 4]
-    for (l, r, logce) in [
-            (16, 3, 10),
-            (4, 6, 16),
-            (8, 9, 20)
+    for (l, le, r) in [
+            (16, 16, 3),
+            (8, 4, 6),
+            (4, 4, 9)
     ]
 ]
 sname = 'UNIVMON'
@@ -110,17 +110,18 @@ ground_truth_univmon = [
             {
                 'sketch_name': sname,
                 'rows': r,
-                'logcols': 6,
-                'logcols_emem': logce,
+                'logcols': 8,
+                'logcols_emem': 8,
                 'thr': 1,
                 'frac': 1,
                 'hash_units': h,
-                'univmon_levels': l
+                'univmon_levels': l,
+                'univmon_levels_emem': le
             }
         ],
         'total_thr': 1
     }
-    for (l, h, r, logce) in gt_list
+    for (l, le, h, r) in gt_list
 ]
 
 yaml.dump(ground_truth, sys.stdout)

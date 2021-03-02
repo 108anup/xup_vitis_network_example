@@ -84,8 +84,8 @@ void calc_hash_util(hls::stream<parallel_pkt> &sketchIn,
 
 #if defined(UNIVMON)
       unsigned level = __builtin_clz(MurmurHash2(key, 3, level_seeds[0]));
-      if(level >= univmon_levels) {
-        level = univmon_levels-1;
+      if(level >= total_univmon_levels) {
+        level = total_univmon_levels-1;
       }
 #endif
 
@@ -108,9 +108,15 @@ void calc_hash_util(hls::stream<parallel_pkt> &sketchIn,
         mem.value = value;
 
 #if defined (UNIVMON)
-        mem.level = level
-#endif
-
+        if(level < univmon_levels){
+          mem.level = level;
+          cache_stream.write(mem);
+        }
+        else {
+          mem.level = level - univmon_levels;
+          gmem_stream.write(mem);
+        }
+#else
         if(index < cm_col_count){
           cache_stream.write(mem);
           // Simulating cache when workload if uniform
@@ -120,6 +126,7 @@ void calc_hash_util(hls::stream<parallel_pkt> &sketchIn,
         else {
           gmem_stream.write(mem);
         }
+#endif
       }
     }
     sketchOut.write(batch);
@@ -159,9 +166,9 @@ void update_cache_util(hls::stream<mem_update> &cache_stream) {
 
 void update_gmem_util(hls::stream<mem_update> &gmem_stream,
 #if defined(UNIVMON)
-                      unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count]
+                      unsigned int sketch_emem[cm_rows][univmon_levels_emem][cm_col_emem_count]
 #else
-                      unsigned int sketch_emem[cm_rows][cm_cols_emem]
+                      unsigned int sketch_emem[cm_rows][cm_col_emem_count]
 #endif
                       ) {
 #pragma HLS INLINE off
@@ -183,13 +190,14 @@ void update_gmem_util(hls::stream<mem_update> &gmem_stream,
       mem = gmem_stream.read();
       row = mem.row;
       index = mem.index;
-      emem_index = index - cm_col_count;
       value = mem.value;
 #if defined(UNIVMON)
       level = mem.level;
+      emem_index = index;
       updated_value = sketch_emem[row][level][emem_index] + value;
       sketch_emem[row][level][emem_index] = updated_value;
 #else
+      emem_index = index - cm_col_count;
       updated_value = sketch_emem[row][emem_index] + value;
       sketch_emem[row][emem_index] = updated_value;
 #endif
@@ -248,9 +256,9 @@ extern "C" {
   // sits between benchmark switch and network layer
   void update_sketch(hls::stream<pkt> &dataIn, hls::stream<pkt> &dataOut,
 #if defined(UNIVMON)
-                     unsigned int sketch_emem[cm_rows][univmon_levels][cm_col_count],
+                     unsigned int sketch_emem[cm_rows][univmon_levels_emem][cm_col_emem_count],
 #else
-                     unsigned int sketch_emem[cm_rows][cm_cols_emem],
+                     unsigned int sketch_emem[cm_rows][cm_cols_emem_count],
 #endif
                      unsigned int num_packets
                      ) {

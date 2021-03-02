@@ -17,9 +17,11 @@ def compile_manifest_util(manifest):
     if('sketch_name' in sketch):
         sketch_name = sketch['sketch_name']
 
-    univmon_levels = 16
+    univmon_levels = 8
+    univmon_levels_emem = 8
     if(sketch_name == 'UNIVMON' and 'univmon_levels' in sketch):
         univmon_levels = sketch['univmon_levels']
+        univmon_levels_emem = sketch['univmon_levels_emem']
 
     rows = sketch['rows']
     logcols = sketch['logcols']
@@ -33,7 +35,8 @@ def compile_manifest_util(manifest):
            "CM_COLS_EMEM={}".format(logcols_emem),
            "HASH_UNITS={}".format(hash_units),
            "SKETCH_NAME={}".format(sketch_name),
-           "UNIVMON_LEVELS={}".format(univmon_levels)
+           "UNIVMON_LEVELS={}".format(univmon_levels),
+           "UNIVMON_LEVELS_EMEM={}".format(univmon_levels_emem)
            ]
     cmd_string = " ".join(cmd)
 
@@ -43,8 +46,8 @@ def compile_manifest_util(manifest):
     tag = "{}-r{}-c{}-e{}-h{}".format(sketch_name, rows,
                                       logcols, logcols_emem, hash_units)
     if(sketch_name == 'UNIVMON'):
-        tag = "{}-l{}-r{}-c{}-e{}-h{}".format(
-            sketch_name, univmon_levels, rows,
+        tag = "{}-l{}-le{}-r{}-c{}-e{}-h{}".format(
+            sketch_name, univmon_levels, univmon_levels_emem, rows,
             logcols, logcols_emem, hash_units)
 
     print("Running: {}".format(cmd))
