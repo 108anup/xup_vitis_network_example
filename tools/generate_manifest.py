@@ -124,4 +124,4 @@ ground_truth_univmon = [
     for (l, le, h, r) in gt_list
 ]
 
-yaml.dump(ground_truth, sys.stdout)
+yaml.dump(ground_truth_univmon, sys.stdout)
